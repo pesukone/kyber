@@ -19,17 +19,18 @@ running "redis-server" in the command line, possibly with "sudo" in front of
 it. The application can be downloaded from
 (https://github.com/pesukone/kyber/archive/master.zip). To run the
 application, navigate to the extracted application directory from the command
-line, run "npm install" and "npm start". If everything worked correctly, the
+line and run "npm install" and "npm start". If everything worked correctly, the
 application should be running at http://127.0.0.1:1337.
 
 One feature of this application not found on the template is the list view.
-This can be accessed from the browser by visiting /addresses, and it displays
-the names of the people registered for the event, as well as their addresses.
-This already exposes all the sensitive data in the database, as anyone can
-access the view. But in addition, the view has an xss vulnerability: the name
-and address are rendered unescaped. Thus inputting script tags in either field
-of the registration form results in code enclosed between them being executed
-on any browser visiting the list view.
+This can be accessed from the browser by visiting
+http://127.0.0.1:1337/addresses and it displays the names of the people
+registered for the event, as well as their addresses. This already exposes all
+the sensitive data in the database, as anyone can access the view. But in
+addition, the view has an xss vulnerability: the names and addresses are rendered
+unescaped. Thus inputting script tags in either field of the registration form
+results in code enclosed between them being executed on any browser that
+visits the list view.
 
 While ordinary users are unlikely to visit the view, the event organizer
 almost certainly will at least once. The xss vulnerability opens up
@@ -39,10 +40,10 @@ allowing the attacker to decide who gets to participate in the event, as the
 organizer will probably not question the information shown on the view.
 
 Fixing the xss vulnerability is easy, as it only requires configuring the
-template engine ejs escape the rendered name and address strings. Hiding the
+template engine ejs to escape the rendered name and address strings. Hiding the
 sensitive data on the other hand takes a little more work. One solution
 would be to implement a login system and make the list accessible to only
-admins. This would solve the problem, but because making users login to this
+admins. This would solve the problem, but because making users login to the
 application should not be necessary, making accounts just for admins seems
 like a waste of effort.
 
@@ -56,10 +57,10 @@ https is not used, the forms are transmitted over http in plaintext. This
 makes the submissions vulnerable to man in the middle attacks, which can be
 demonstated with OWASP ZAP by launching a browser through it, navigating to
 the application website, submitting a name and an address and inspecting the
-post request in the history tab of ZAP. A real attack would obviously use
+post request in the history tab of ZAP. A real attack would likely use
 different tools, but the vulnerability can easily be verified this way.
 
-The solution, unsurprisingly, is configuring Node to use https instead of
+The solution, unsurprisingly, is configuring Nodejs to use https instead of
 http. This requires generating a certificate, or acquiring one from for
 example Let's Encrypt, and making the server use it. Afterwards the requests
 are encrypted, making reading them much harder.
@@ -70,22 +71,22 @@ example is the database, which in this case is not password protected, giving
 anyone with remote access the ability to read and write data. This would seem
 to remove one layer of security completely, although the password would still
 have to be stored on the server in some form. And if the attacker can read the
-password, it might as well not exists. But if the password were read
+password, it might as well not exists. But if the password is read
 protected, the attacker would perhaps require root access, which would be an
 improvement over allowing any user to access the database.
 
 Because the application is written in javascript, components with known
 vulnerabilities are not hard to introduce. The dependencies of the application
 can be analyzed by running auditjs (https://github.com/OSSIndex/auditjs) in
-the project directory after npm install has been run. If all of the
+the project directory after "npm install" has been run. If all of the
 dependencies are up to date, audit does not detect any known vulnerabilities
-in the application. However according the tool the express framework has 21
+in the application. However according to the tool the express framework has 21
 known vulnerabilities in different versions, and its website
 (https://expressjs.com/) even has a message about the latest version
 containing important security updates.
 
 Unsurprisingly, decrementing the version number of express in package.json
-makes both express and some of its dependencies vulnerable to attacks such as
+makes express and some of its dependencies vulnerable to attacks such as
 reading files in the server root, overwriting some functions and denial of
 service. Fortunately fixing the problem is as easy as introducing it: the
 version of express simply has to be set to "^4.16.0".
@@ -116,4 +117,4 @@ easy, but fixing them can be as simple as changing one character in the
 source code, or as difficult as writing an entire monitoring system for the
 application. It is clear why some of the vulnerabilities in the OWASP top ten
 list are as common as they are, although some of them would be rather easily
-preventable.
+prevented.
