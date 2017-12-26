@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Participants</title>
+  </head>
+  <body>
+    <h1>Participants for the event</h1>
+
+    <ul>
+      <% addrmap.forEach((addr, name) => { %>
+        <li><%- name %>, <%- addr %></li>
+      <% }) %>
+    </ul>
+  </body>
+</html>

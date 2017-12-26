@@ -1,0 +1,119 @@
+As Spring gives me headache, I decided to write the application in Nodejs. And
+due to my lack of imagination, the application is very similar to the template
+project. But because the data collected by the application has a very simple
+structure, I opted to use Redis as my database. I also decided to follow the
+recently released 2017 version of the OWASP top 10
+(https://www.owasp.org/images/7/72/OWASP_Top_10-2017_%28en%29.pdf.pdf) as the
+web landscape has seen some changes since 2013.
+
+Because of this change in tools, running the application requires first
+installing Redis and Nodejs. As Redis does not officially support Windows,
+on Windows 10 configuring WSL and using its package manager to install the
+dependencies is recommended. There is also the unofficial Windows port of
+Redis, and of course Virtualbox, if running older versions of Windows. On
+macos the dependencies can apparently be installed with homebrew, and linux
+users probably know how their package manager works.
+
+After Node and Redis are installed, Redis has to be started. This can be done by
+running "redis-server" in the command line, possibly with "sudo" in front of
+it. The application can be downloaded from
+(https://github.com/pesukone/kyber/archive/master.zip). To run the
+application, navigate to the extracted application directory from the command
+line, run "npm install" and "npm start". If everything worked correctly, the
+application should be running at http://127.0.0.1:1337.
+
+One feature of this application not found on the template is the list view.
+This can be accessed from the browser by visiting /addresses, and it displays
+the names of the people registered for the event, as well as their addresses.
+This already exposes all the sensitive data in the database, as anyone can
+access the view. But in addition, the view has an xss vulnerability: the name
+and address are rendered unescaped. Thus inputting script tags in either field
+of the registration form results in code enclosed between them being executed
+on any browser visiting the list view.
+
+While ordinary users are unlikely to visit the view, the event organizer
+almost certainly will at least once. The xss vulnerability opens up
+possibilities for targeted attacks, such as malicious redirects, maybe
+targeted csrf, or simply modifying the list of names displayed on the view,
+allowing the attacker to decide who gets to participate in the event, as the
+organizer will probably not question the information shown on the view.
+
+Fixing the xss vulnerability is easy, as it only requires configuring the
+template engine ejs escape the rendered name and address strings. Hiding the
+sensitive data on the other hand takes a little more work. One solution
+would be to implement a login system and make the list accessible to only
+admins. This would solve the problem, but because making users login to this
+application should not be necessary, making accounts just for admins seems
+like a waste of effort.
+
+A simpler solution would be just disabling the view completely, and retrieving
+the required information from the database with a shell script executed
+through ssh, or something similar. The data would be sufficiently protected,
+although the organizer would likely find the solution too crude.
+
+And there is still another way the application exposes sensitive data. As
+https is not used, the forms are transmitted over http in plaintext. This
+makes the submissions vulnerable to man in the middle attacks, which can be
+demonstated with OWASP ZAP by launching a browser through it, navigating to
+the application website, submitting a name and an address and inspecting the
+post request in the history tab of ZAP. A real attack would obviously use
+different tools, but the vulnerability can easily be verified this way.
+
+The solution, unsurprisingly, is configuring Node to use https instead of
+http. This requires generating a certificate, or acquiring one from for
+example Let's Encrypt, and making the server use it. Afterwards the requests
+are encrypted, making reading them much harder.
+
+In addition to https not being configured, a lot of other things in the
+application use potentially insecure default configurations. The clearest
+example is the database, which in this case is not password protected, giving
+anyone with remote access the ability to read and write data. This would seem
+to remove one layer of security completely, although the password would still
+have to be stored on the server in some form. And if the attacker can read the
+password, it might as well not exists. But if the password were read
+protected, the attacker would perhaps require root access, which would be an
+improvement over allowing any user to access the database.
+
+Because the application is written in javascript, components with known
+vulnerabilities are not hard to introduce. The dependencies of the application
+can be analyzed by running auditjs (https://github.com/OSSIndex/auditjs) in
+the project directory after npm install has been run. If all of the
+dependencies are up to date, audit does not detect any known vulnerabilities
+in the application. However according the tool the express framework has 21
+known vulnerabilities in different versions, and its website
+(https://expressjs.com/) even has a message about the latest version
+containing important security updates.
+
+Unsurprisingly, decrementing the version number of express in package.json
+makes both express and some of its dependencies vulnerable to attacks such as
+reading files in the server root, overwriting some functions and denial of
+service. Fortunately fixing the problem is as easy as introducing it: the
+version of express simply has to be set to "^4.16.0".
+
+Of course this does not guarantee that all of the dependencies are completely
+secure, but if the vulnerability is unknown it does not count as known. 
+The tool does claim that most of the dependencies have no known
+vulnerabilities, but to me this only indicates that people have little
+interest in documenting, or even finding vulnerabilities in small javascript
+libraries. 
+
+Insufficient logging and monitoring is a new addition to the OWASP top 10, and
+this application suffers from both. Due to the laziness of the
+developer, hardly anything is logged, even to the console, and absolutely
+nothing is monitored. The application does store sensitive data, so keeping
+track of the activity on the site is quite important, as breaches likely remain
+undetected otherwise. Monitoring database reads and logging them seems like a
+good start, and I would also try to log any script tags sent to the server.
+
+Unfortunately logging and monitoring requires quite a lot of manual work, and
+there are only a couple of frameworks for the task. Redis does have some
+monitoring utilities, but overall it looks like setting up monitoring and
+logging takes almost as much effort as writing the application itself. This is
+not ideal.
+
+In conclusion, introducing vulnerabilities to a web application is quite
+easy, but fixing them can be as simple as changing one character in the
+source code, or as difficult as writing an entire monitoring system for the
+application. It is clear why some of the vulnerabilities in the OWASP top ten
+list are as common as they are, although some of them would be rather easily
+preventable.
